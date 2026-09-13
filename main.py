@@ -1,6 +1,6 @@
 import os
 import asyncio
-import google.generativeai as genai
+from google import genai
 from aiohttp import web
 import discord
 from discord.ext import commands
@@ -18,9 +18,8 @@ async def start_web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# 2. Configuração da API do Gemini (Modelo corrigido para gemini-1.5-flash)
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+# 2. Configuração do Gemini Client (Biblioteca oficial google-genai)
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # 3. Configuração do Bot do Discord
 intents = discord.Intents.default()
@@ -54,7 +53,14 @@ async def noticias(ctx, *, jogo: str = None):
         )
 
         try:
-            response = model.generate_content(prompt)
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                )
+            )
             texto = response.text.strip()
 
             if len(texto) <= 2000:
