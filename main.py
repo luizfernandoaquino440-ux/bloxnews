@@ -1,47 +1,84 @@
 import os
-import aiohttp
+import asyncio
+import google.generativeai as genai
+from aiohttp import web
 import discord
 from discord.ext import commands
 
+# 1. Servidor Web Fictício (Mantém o Render Free ativo)
+async def handle_ping(request):
+    return web.Response(text="Bot BloxNews online!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get('/', handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
+# 2. Configuração da API do Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+# 3. Configuração do Bot do Discord
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'🤖 Bot {bot.user} está online!')
+    print(f"🤖 BloxNews conectado com sucesso como: {bot.user}")
 
 @bot.command(name="noticias")
-async def noticias_roblox(ctx):
-    await ctx.send("🤖 *Buscando novidades do Roblox... Aguarde!*")
+async def noticias(ctx, *, jogo: str = None):
+    """
+    Uso:
+    !noticias -> Notícias gerais da plataforma Roblox
+    !noticias <nome do jogo> -> Notícias específicas do jogo digitado
+    """
+    async with ctx.typing():
+        if jogo:
+            alvo = f"especificamente sobre o jogo/experiência '{jogo}' no Roblox"
+            mensagem_espera = f"🔍 Buscando as últimas novidades de **{jogo}** no Roblox..."
+        else:
+            alvo = "gerais sobre a plataforma Roblox, seus eventos globais e atualizações da comunidade"
+            mensagem_espera = "🔍 Buscando as principais notícias gerais do Roblox..."
 
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    
-    prompt = (
-        "Você é um jornalista especialista em Roblox. "
-        "Traga um resumo com as notícias, atualizações e novidades mais recentes do Roblox. "
-        "Use tópicos curtos, negritos e emojis. Responda em português do Brasil de forma direta."
-    )
+        await ctx.send(mensagem_espera)
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        prompt = (
+            f"Você é o 'BloxNews', um jornalista especialista em Roblox.\n"
+            f"Sua tarefa é fornecer as notícias, atualizações, mecânicas, vazamentos ou fatos mais recentes {alvo}.\n\n"
+            f"Diretrizes:\n"
+            f"- Se for um jogo específico, foque em atualizações de código, mecânicas, eventos do jogo ou novidades dos desenvolvedores dele.\n"
+            f"- Traga de 2 a 3 tópicos bem explicados.\n"
+            f"- Use Markdown do Discord (negritos, listas com bullet points e emojis temáticos).\n"
+            f"- Responda diretamente no formato final, sem saudações genéricas no começo ou no fim."
+        )
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    texto_da_ia = data['candidates'][0]['content']['parts'][0]['text']
-                    
-                    embed = discord.Embed(
-                        title="📰 Giro de Notícias Roblox",
-                        description=texto_da_ia,
-                        color=discord.Color.blue()
-                    )
-                    await ctx.send(embed=embed)
-                else:
-                    await ctx.send("❌ Erro ao falar com a IA. Verifique a chave do Gemini.")
-    except Exception:
-        await ctx.send("❌ Erro ao tentar gerar as notícias.")
+        try:
+            response = model.generate_content(prompt)
+            texto = response.text.strip()
 
-bot.run(os.environ.get('TOKEN'))
+            if len(texto) <= 2000:
+                await ctx.send(texto)
+            else:
+                for i in range(0, len(texto), 1900):
+                    await ctx.send(texto[i:i+1900])
+
+        except Exception as e:
+            await ctx.send(f"⚠️ Erro ao consultar o Gemini: `{e}`")
+
+# 4. Loop Principal
+async def main():
+    await start_web_server()
+    token = os.environ.get("TOKEN")
+    if token:
+        await bot.start(token)
+    else:
+        print("❌ ERRO: Variável TOKEN não foi configurada no Render!")
+
+if __name__ == "__main__":
+    asyncio.run(main())
