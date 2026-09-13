@@ -18,9 +18,9 @@ async def start_web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# 2. Configuração da API do Gemini
+# 2. Configuração da API do Gemini (Modelo corrigido para gemini-1.5-flash)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # 3. Configuração do Bot do Discord
 intents = discord.Intents.default()
@@ -33,11 +33,6 @@ async def on_ready():
 
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
-    """
-    Uso:
-    !noticias -> Notícias gerais da plataforma Roblox
-    !noticias <nome do jogo> -> Notícias específicas do jogo digitado
-    """
     async with ctx.typing():
         if jogo:
             alvo = f"especificamente sobre o jogo/experiência '{jogo}' no Roblox"
