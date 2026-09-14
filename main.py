@@ -3,7 +3,7 @@ import asyncio
 from google import genai
 from aiohttp import web
 import discord
-from discord.ext import commands
+from discord.ext commands
 
 # 1. Servidor Web Fictício (Mantém o Render Free ativo)
 async def handle_ping(request):
@@ -18,7 +18,7 @@ async def start_web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# 2. Configuração do Gemini Client (Usando google-genai)
+# 2. Configuração do Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # 3. Configuração do Bot do Discord
@@ -34,22 +34,29 @@ async def on_ready():
 async def noticias(ctx, *, jogo: str = None):
     async with ctx.typing():
         if jogo:
-            alvo = f"especificamente sobre o jogo/experiência '{jogo}' no Roblox"
-            mensagem_espera = f"🔍 Buscando as últimas novidades de **{jogo}** no Roblox..."
+            foco_instrucao = (
+                f"Foque EXCLUSIVAMENTE nas atualizações mais RECENTES, novos conteúdos, "
+                f"eventos de tempo limitado, sneaks/vazamentos e notas de patch do jogo '{jogo}' no Roblox."
+            )
+            mensagem_espera = f"🔍 Buscando as novidades mais recentes de **{jogo}** no Roblox..."
         else:
-            alvo = "gerais sobre a plataforma Roblox, seus eventos globais e atualizações da comunidade"
-            mensagem_espera = "🔍 Buscando as principais notícias gerais do Roblox..."
+            foco_instrucao = (
+                "Foque EXCLUSIVAMENTE em notícias oficiais e recentes do PRÓPRIO ROBLOX como plataforma "
+                "(ex: eventos globais novos, The Hunt, Roblox Innovation Awards, atualizações da engine, "
+                "novas ferramentas ou anúncios da própria Roblox Corporation)."
+            )
+            mensagem_espera = "🔍 Buscando as últimas novidades oficiais da plataforma Roblox..."
 
         await ctx.send(mensagem_espera)
 
         prompt = (
-            f"Você é o 'BloxNews', um jornalista especialista em Roblox.\n"
-            f"Sua tarefa é fornecer as notícias, atualizações, mecânicas, vazamentos ou fatos mais recentes {alvo}.\n\n"
-            f"Diretrizes:\n"
-            f"- Se for um jogo específico, foque em atualizações de código, mecânicas, eventos do jogo ou novidades dos desenvolvedores dele.\n"
-            f"- Traga de 2 a 3 tópicos bem explicados.\n"
-            f"- Use Markdown do Discord (negritos, listas com bullet points e emojis temáticos).\n"
-            f"- Responda diretamente no formato final, sem saudações genéricas no começo ou no fim."
+            f"Você é o 'BloxNews', um jornalista de tecnologia especializado em Roblox.\n"
+            f"{foco_instrucao}\n\n"
+            f"REGRAS IMPORTANTES:\n"
+            f"- Traga apenas acontecimentos e notícias ATUAIS e RECENTES. Ignore coisas antigas ou mecânicas básicas do passado.\n"
+            f"- Liste de 2 a 3 tópicos curtos, marcantes e bem explicados.\n"
+            f"- Use Markdown do Discord (negritos, tópicos em marcadores e emojis do tema).\n"
+            f"- Seja direto ao ponto, sem saudações genéricas no início ou no fim."
         )
 
         try:
@@ -57,7 +64,7 @@ async def noticias(ctx, *, jogo: str = None):
             response = await loop.run_in_executor(
                 None,
                 lambda: client.models.generate_content(
-                    model="gemini-3.6-flash",  # Modelo atualizado conforme o erro
+                    model="gemini-3.6-flash",
                     contents=prompt,
                 )
             )
