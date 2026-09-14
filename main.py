@@ -86,14 +86,17 @@ async def noticias(ctx, *, jogo: str = None):
                 )
 
             try:
-                # Modelo atualizado da família Llama 3.1
+                # Detecta automaticamente o primeiro modelo disponível na sua conta Groq
+                models_list = groq_client.models.list()
+                model_id = models_list.data[0].id
+
                 chat_completion = await loop.run_in_executor(
                     None,
                     lambda: groq_client.chat.completions.create(
                         messages=[
                             {"role": "user", "content": prompt}
                         ],
-                        model="llama-3.1-8b-instant",
+                        model=model_id,
                     )
                 )
                 texto = chat_completion.choices[0].message.content.strip()
