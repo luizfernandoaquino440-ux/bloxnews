@@ -51,7 +51,6 @@ async def on_ready():
 
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
-    # Verifica se o bot já está ocupado com outra requisição
     if bot_ocupado.locked():
         await ctx.send(f"⏳ **{ctx.author.mention}**, aguarde um momento! Já estou processando uma notícia agora mesmo.")
         return
@@ -87,14 +86,14 @@ async def noticias(ctx, *, jogo: str = None):
                 )
 
             try:
-                # Modelo estável e ativo da Groq
+                # Modelo atualizado da família Llama 3.1
                 chat_completion = await loop.run_in_executor(
                     None,
                     lambda: groq_client.chat.completions.create(
                         messages=[
                             {"role": "user", "content": prompt}
                         ],
-                        model="llama3-8b-8192",
+                        model="llama-3.1-8b-instant",
                     )
                 )
                 texto = chat_completion.choices[0].message.content.strip()
@@ -106,7 +105,7 @@ async def noticias(ctx, *, jogo: str = None):
                         await ctx.send(texto[i:i+1900])
 
             except Exception as e:
-                await ctx.send(f"⚠️ Erro ao gerar notícias com Groq: `{e}`")
+                await ctx.send(f"⚠️ Erro na resposta da IA: `{e}`")
 
 # 5. Loop Principal
 async def main():
