@@ -18,7 +18,7 @@ async def start_web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# 2. Configuração do Gemini Client (Biblioteca oficial google-genai)
+# 2. Configuração do Gemini Client (Usando google-genai)
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # 3. Configuração do Bot do Discord
@@ -57,7 +57,7 @@ async def noticias(ctx, *, jogo: str = None):
             response = await loop.run_in_executor(
                 None,
                 lambda: client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-3.6-flash",  # Modelo atualizado conforme o erro
                     contents=prompt,
                 )
             )
