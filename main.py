@@ -1,14 +1,14 @@
 import os
 import asyncio
+import datetime
 from google import genai
-from google.genai import types
 from aiohttp import web
 import discord
 from discord.ext import commands
 
 # 1. Servidor Web Fictício (Mantém o Render Free ativo)
 async def handle_ping(request):
-    return web.Response(text="Bot BloxNews online com Google Search!")
+    return web.Response(text="Bot BloxNews online!")
 
 async def start_web_server():
     app = web.Application()
@@ -34,30 +34,32 @@ async def on_ready():
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
     async with ctx.typing():
+        data_atual = datetime.date.today().strftime("%d/%m/%Y")
+        
         if jogo:
             foco_instrucao = (
-                f"Pesquise profundamente na web sobre as ÚLTIMAS atualizações, notas de patch, "
-                f"eventos de tempo limitado, sneaks, códigos e novidades do jogo '{jogo}' no Roblox."
+                f"Forneça um resumo detalhado e atualizado sobre as novidades mais marcantes, "
+                f"atualizações de conteúdo, códigos ou notas de patch do jogo/experiência '{jogo}' no Roblox."
             )
-            mensagem_espera = f"🔍 Pesquisando afundo na web sobre **{jogo}** no Roblox..."
+            mensagem_espera = f"🔍 Buscando as principais novidades de **{jogo}** no Roblox..."
         else:
             foco_instrucao = (
-                "Pesquise profundamente na web sobre os acontecimentos mais RECENTES do PRÓPRIO ROBLOX como plataforma "
-                "(eventos oficiais vigentes, anúncios da Roblox Corp, atualizações do motor/plataforma ou The Hunt/Innovation Awards)."
+                "Forneça um resumo das novidades e atualizações mais importantes da plataforma ROBLOX como um todo "
+                "(eventos oficiais da Roblox Corp, atualizações do motor/engine, ferramentas de desenvolvimento ou feiras de comunidade)."
             )
-            mensagem_espera = "🔍 Pesquisando afundo na web sobre as novidades da plataforma Roblox..."
+            mensagem_espera = "🔍 Buscando as últimas novidades da plataforma Roblox..."
 
         await ctx.send(mensagem_espera)
 
         prompt = (
-            f"Você é o 'BloxNews', um jornalista investigativo especializado em Roblox.\n"
+            f"Hoje é {data_atual}.\n"
+            f"Você é o 'BloxNews', um jornalista especialista em Roblox.\n"
             f"{foco_instrucao}\n\n"
-            f"REGRAS OBRIGATÓRIAS:\n"
-            f"- Use a ferramenta de pesquisa para buscar fatos e dados RECENTES.\n"
-            f"- Traga apenas de 2 a 3 notícias marcantes e confirmadas.\n"
-            f"- Explique o que mudou ou o que está acontecendo AGORA (ignore updates antigos de meses atrás).\n"
-            f"- Formatado para Discord com negritos, tópicos em marcadores e emojis temáticos.\n"
-            f"- Não inclua saudações genéricas no começo ou no final."
+            f"DIRETRIZES DE RESPOSTA:\n"
+            f"- Priorize atualizações recentes e relevantes. Ignore mecânicas antigas de anos atrás.\n"
+            f"- Apresente de 2 a 3 tópicos bem explicados e organizados.\n"
+            f"- Utilize a formatação do Discord (negritos, listas em marcadores e emojis do tema).\n"
+            f"- Responda diretamente no formato final, sem saudações ou despedidas."
         )
 
         try:
@@ -67,10 +69,6 @@ async def noticias(ctx, *, jogo: str = None):
                 lambda: client.models.generate_content(
                     model="gemini-3.6-flash",
                     contents=prompt,
-                    # Ativa a pesquisa em tempo real no Google
-                    config=types.GenerateContentConfig(
-                        tools=[types.Tool(google_search=types.GoogleSearch())]
-                    )
                 )
             )
             texto = response.text.strip()
@@ -82,7 +80,7 @@ async def noticias(ctx, *, jogo: str = None):
                     await ctx.send(texto[i:i+1900])
 
         except Exception as e:
-            await ctx.send(f"⚠️ Erro ao consultar a pesquisa do Gemini: `{e}`")
+            await ctx.send(f"⚠️ Erro ao consultar o Gemini: `{e}`")
 
 # 4. Loop Principal
 async def main():
