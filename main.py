@@ -1,15 +1,14 @@
 import os
 import asyncio
-import xml.etree.ElementTree as ET
-import aiohttp
-from aiohttp import web
+from duckduckgo_search import DDGS
 from google import genai
+from aiohttp import web
 import discord
 from discord.ext import commands
 
 # 1. Servidor Web (Render Keep-Alive)
 async def handle_ping(request):
-    return web.Response(text="Bot BloxNews online!")
+    return web.Response(text="Bot BloxNews online com Web Search!")
 
 async def start_web_server():
     app = web.Application()
@@ -23,68 +22,63 @@ async def start_web_server():
 # 2. Configuração do Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# 3. Funções de Busca Real (RSS Feed oficial Roblox DevForum)
-async def buscar_noticias_roblox_reais():
-    url = "https://devforum.roblox.com/c/updates/45.rss"
+# 3. Função de Pesquisa Web Gratuita (DuckDuckGo)
+def pesquisar_na_web(query):
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=5) as resp:
-                if resp.status == 200:
-                    xml_data = await resp.text()
-                    root = ET.fromstring(xml_data)
-                    items = root.findall('./channel/item')[:3]
-                    
-                    noticias = []
-                    for item in items:
-                        titulo = item.find('title').text if item.find('title') is not None else ""
-                        link = item.find('link').text if item.find('link') is not None else ""
-                        noticias.append(f"- Título: {titulo}\n  Link: {link}")
-                    
-                    return "\n".join(noticias)
+        results = list(DDGS().text(query, max_results=3))
+        if not results:
+            return None
+        
+        texto_buscado = ""
+        for r in results:
+            texto_buscado += f"- Fonte ({r['title']}): {r['body']}\n Link: {r['href']}\n\n"
+        return texto_buscado
     except Exception as e:
-        print(f"Erro ao buscar RSS: {e}")
-    return None
+        print(f"Erro na busca web: {e}")
+        return None
 
-# 4. Configuração do Bot
+# 4. Bot Discord
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"🤖 BloxNews conectado com sucesso como: {bot.user}")
+    print(f"🤖 BloxNews conectado como: {bot.user}")
 
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
     async with ctx.typing():
+        loop = asyncio.get_running_loop()
+
         if jogo:
-            await ctx.send(f"🔍 Buscando informações sobre **{jogo}** no Roblox...")
+            await ctx.send(f"🔍 Pesquisando na web em tempo real sobre **{jogo}** no Roblox...")
+            termo_busca = f"Roblox {jogo} latest update patch notes news codes"
+        else:
+            await ctx.send("🔍 Pesquisando as últimas notícias gerais do Roblox na web...")
+            termo_busca = f"Roblox platform latest updates news events"
+
+        # Faz a busca web em segundo plano
+        resultados_web = await loop.run_in_executor(None, pesquisar_na_web, termo_busca)
+
+        if resultados_web:
             prompt = (
-                f"O usuário quer notícias sobre o jogo '{jogo}' no Roblox.\n"
-                f"AVISO CRÍTICO: Se você NÃO tiver certeza absoluta de uma atualização recente e real deste jogo, "
-                f"RESPONDA APENAS: 'Não encontrei atualizações oficiais recentes confirmadas para o jogo {jogo}. "
-                f"Recomendo checar a página oficial do jogo no Roblox.'\n"
-                f"NUNCA invente atualizações, mecânicas ou códigos fictícios. Se souber de fatos reais, resuma-os em 2 tópicos com Markdown."
+                f"Você é o 'BloxNews', um jornalista especializado em Roblox.\n"
+                f"Com base APENAS nos resultados reais de busca da web abaixo, crie um resumo das novidades:\n\n"
+                f"{resultados_web}\n\n"
+                f"REGRAS:\n"
+                f"- Destaque as principais atualizações, códigos ou novidades encontradas.\n"
+                f"- Formate com marcadores, emojis e negritos para o Discord.\n"
+                f"- Se houver links relevantes nos dados acima, adicione-os no final.\n"
+                f"- Seja direto e sem saudações."
             )
         else:
-            await ctx.send("🔍 Obtendo as últimas novidades oficiais do Roblox...")
-            dados_reais = await buscar_noticias_roblox_reais()
-            
-            if dados_reais:
-                prompt = (
-                    f"Abaixo estão os anúncios oficiais MAIS RECENTES do Roblox retirados diretamente do DevForum:\n\n"
-                    f"{dados_reais}\n\n"
-                    f"Sua tarefa: Resuma e formate esses tópicos oficiais para o Discord usando emojis, negritos e marcadores.\n"
-                    f"NÃO adicione nenhuma informação externa que não esteja no texto acima."
-                )
-            else:
-                prompt = (
-                    "Traga um resumo curto sobre a plataforma Roblox e como acompanhar os eventos oficiais "
-                    "no site roblox.com. Não invente eventos."
-                )
+            prompt = (
+                f"Informe que você tentou pesquisar na web sobre '{jogo if jogo else 'Roblox'}', "
+                f"mas não encontrou resultados recentes e peça para tentar novamente mais tarde."
+            )
 
         try:
-            loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
                 None,
                 lambda: client.models.generate_content(
@@ -101,7 +95,7 @@ async def noticias(ctx, *, jogo: str = None):
                     await ctx.send(texto[i:i+1900])
 
         except Exception as e:
-            await ctx.send(f"⚠️ Erro ao processar notícias: `{e}`")
+            await ctx.send(f"⚠️ Erro ao gerar resposta: `{e}`")
 
 # 5. Loop Principal
 async def main():
