@@ -1,13 +1,14 @@
 import os
 import asyncio
 from google import genai
+from google.genai import types
 from aiohttp import web
 import discord
 from discord.ext import commands
 
 # 1. Servidor Web Fictício (Mantém o Render Free ativo)
 async def handle_ping(request):
-    return web.Response(text="Bot BloxNews online!")
+    return web.Response(text="Bot BloxNews online com Google Search!")
 
 async def start_web_server():
     app = web.Application()
@@ -35,28 +36,28 @@ async def noticias(ctx, *, jogo: str = None):
     async with ctx.typing():
         if jogo:
             foco_instrucao = (
-                f"Foque EXCLUSIVAMENTE nas atualizações mais RECENTES, novos conteúdos, "
-                f"eventos de tempo limitado, sneaks/vazamentos e notas de patch do jogo '{jogo}' no Roblox."
+                f"Pesquise profundamente na web sobre as ÚLTIMAS atualizações, notas de patch, "
+                f"eventos de tempo limitado, sneaks, códigos e novidades do jogo '{jogo}' no Roblox."
             )
-            mensagem_espera = f"🔍 Buscando as novidades mais recentes de **{jogo}** no Roblox..."
+            mensagem_espera = f"🔍 Pesquisando afundo na web sobre **{jogo}** no Roblox..."
         else:
             foco_instrucao = (
-                "Foque EXCLUSIVAMENTE em notícias oficiais e recentes do PRÓPRIO ROBLOX como plataforma "
-                "(ex: eventos globais novos, Roblox Innovation Awards, atualizações da engine, "
-                "novas ferramentas ou anúncios da própria Roblox Corporation)."
+                "Pesquise profundamente na web sobre os acontecimentos mais RECENTES do PRÓPRIO ROBLOX como plataforma "
+                "(eventos oficiais vigentes, anúncios da Roblox Corp, atualizações do motor/plataforma ou The Hunt/Innovation Awards)."
             )
-            mensagem_espera = "🔍 Buscando as últimas novidades oficiais da plataforma Roblox..."
+            mensagem_espera = "🔍 Pesquisando afundo na web sobre as novidades da plataforma Roblox..."
 
         await ctx.send(mensagem_espera)
 
         prompt = (
-            f"Você é o 'BloxNews', um jornalista de tecnologia especializado em Roblox.\n"
+            f"Você é o 'BloxNews', um jornalista investigativo especializado em Roblox.\n"
             f"{foco_instrucao}\n\n"
-            f"REGRAS IMPORTANTES:\n"
-            f"- Traga apenas acontecimentos e notícias ATUAIS e RECENTES. Ignore coisas antigas ou mecânicas básicas do passado.\n"
-            f"- Liste de 2 a 3 tópicos curtos, marcantes e bem explicados.\n"
-            f"- Use Markdown do Discord (negritos, tópicos em marcadores e emojis do tema).\n"
-            f"- Seja direto ao ponto, sem saudações genéricas no início ou no fim."
+            f"REGRAS OBRIGATÓRIAS:\n"
+            f"- Use a ferramenta de pesquisa para buscar fatos e dados RECENTES.\n"
+            f"- Traga apenas de 2 a 3 notícias marcantes e confirmadas.\n"
+            f"- Explique o que mudou ou o que está acontecendo AGORA (ignore updates antigos de meses atrás).\n"
+            f"- Formatado para Discord com negritos, tópicos em marcadores e emojis temáticos.\n"
+            f"- Não inclua saudações genéricas no começo ou no final."
         )
 
         try:
@@ -66,6 +67,10 @@ async def noticias(ctx, *, jogo: str = None):
                 lambda: client.models.generate_content(
                     model="gemini-3.6-flash",
                     contents=prompt,
+                    # Ativa a pesquisa em tempo real no Google
+                    config=types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())]
+                    )
                 )
             )
             texto = response.text.strip()
@@ -77,7 +82,7 @@ async def noticias(ctx, *, jogo: str = None):
                     await ctx.send(texto[i:i+1900])
 
         except Exception as e:
-            await ctx.send(f"⚠️ Erro ao consultar o Gemini: `{e}`")
+            await ctx.send(f"⚠️ Erro ao consultar a pesquisa do Gemini: `{e}`")
 
 # 4. Loop Principal
 async def main():
