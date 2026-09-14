@@ -22,6 +22,9 @@ async def start_web_server():
 # 2. Cliente Groq API
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
+# Trava global para impedir usos simultâneos do bot
+bot_ocupado = asyncio.Lock()
+
 # 3. Pesquisa Web em tempo real (DuckDuckGo)
 def pesquisar_na_web(query):
     try:
@@ -48,56 +51,62 @@ async def on_ready():
 
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
-    async with ctx.typing():
-        loop = asyncio.get_running_loop()
+    # Verifica se o bot já está ocupado com outra requisição
+    if bot_ocupado.locked():
+        await ctx.send(f"⏳ **{ctx.author.mention}**, aguarde um momento! Já estou processando uma notícia agora mesmo.")
+        return
 
-        if jogo:
-            await ctx.send(f"🔍 Pesquisando na web em tempo real sobre **{jogo}** no Roblox...")
-            termo_busca = f"Roblox {jogo} latest update patch notes news"
-        else:
-            await ctx.send("🔍 Pesquisando as últimas notícias do Roblox na web...")
-            termo_busca = "Roblox platform latest updates news events"
+    async with bot_ocupado:
+        async with ctx.typing():
+            loop = asyncio.get_running_loop()
 
-        resultados_web = await loop.run_in_executor(None, pesquisar_na_web, termo_busca)
-
-        if resultados_web:
-            prompt = (
-                f"Você é o 'BloxNews', um jornalista especializado em Roblox.\n"
-                f"Com base APENAS nos resultados de busca abaixo, crie um resumo objetivo das novidades:\n\n"
-                f"{resultados_web}\n\n"
-                f"REGRAS:\n"
-                f"- Destaque as principais atualizações ou novidades encontradas.\n"
-                f"- Formate com marcadores, emojis e negritos para o Discord.\n"
-                f"- Seja direto e responda em português.\n"
-                f"- Não inclua saudações ou despedidas."
-            )
-        else:
-            prompt = (
-                f"Informe resumidamente em português que você pesquisou sobre '{jogo if jogo else 'Roblox'}', "
-                f"mas não encontrou atualizações recentes nas fontes da web no momento."
-            )
-
-        try:
-            # Modelo estável e rápido garantido na Groq
-            chat_completion = await loop.run_in_executor(
-                None,
-                lambda: groq_client.chat.completions.create(
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    model="llama-3.1-8b-instant",
-                )
-            )
-            texto = chat_completion.choices[0].message.content.strip()
-
-            if len(texto) <= 2000:
-                await ctx.send(texto)
+            if jogo:
+                await ctx.send(f"🔍 Pesquisando na web em tempo real sobre **{jogo}** no Roblox...")
+                termo_busca = f"Roblox {jogo} latest update patch notes news"
             else:
-                for i in range(0, len(texto), 1900):
-                    await ctx.send(texto[i:i+1900])
+                await ctx.send("🔍 Pesquisando as últimas notícias do Roblox na web...")
+                termo_busca = "Roblox platform latest updates news events"
 
-        except Exception as e:
-            await ctx.send(f"⚠️ Erro ao gerar notícias com Groq: `{e}`")
+            resultados_web = await loop.run_in_executor(None, pesquisar_na_web, termo_busca)
+
+            if resultados_web:
+                prompt = (
+                    f"Você é o 'BloxNews', um jornalista especializado em Roblox.\n"
+                    f"Com base APENAS nos resultados de busca abaixo, crie um resumo objetivo das novidades:\n\n"
+                    f"{resultados_web}\n\n"
+                    f"REGRAS:\n"
+                    f"- Destaque as principais atualizações ou novidades encontradas.\n"
+                    f"- Formate com marcadores, emojis e negritos para o Discord.\n"
+                    f"- Seja direto e responda em português.\n"
+                    f"- Não inclua saudações ou despedidas."
+                )
+            else:
+                prompt = (
+                    f"Informe resumidamente em português que você pesquisou sobre '{jogo if jogo else 'Roblox'}', "
+                    f"mas não encontrou atualizações recentes nas fontes da web no momento."
+                )
+
+            try:
+                # Modelo estável e ativo da Groq
+                chat_completion = await loop.run_in_executor(
+                    None,
+                    lambda: groq_client.chat.completions.create(
+                        messages=[
+                            {"role": "user", "content": prompt}
+                        ],
+                        model="llama3-8b-8192",
+                    )
+                )
+                texto = chat_completion.choices[0].message.content.strip()
+
+                if len(texto) <= 2000:
+                    await ctx.send(texto)
+                else:
+                    for i in range(0, len(texto), 1900):
+                        await ctx.send(texto[i:i+1900])
+
+            except Exception as e:
+                await ctx.send(f"⚠️ Erro ao gerar notícias com Groq: `{e}`")
 
 # 5. Loop Principal
 async def main():
