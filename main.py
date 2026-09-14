@@ -1,22 +1,23 @@
 import os
 import asyncio
-import aiohttp
 import xml.etree.ElementTree as ET
+import aiohttp
+from aiohttp import web
 from google import genai
 import discord
 from discord.ext import commands
 
 # 1. Servidor Web (Render Keep-Alive)
 async def handle_ping(request):
-    return aiohttp.web.Response(text="Bot BloxNews online!")
+    return web.Response(text="Bot BloxNews online!")
 
 async def start_web_server():
-    app = aiohttp.web.Application()
+    app = web.Application()
     app.router.add_get('/', handle_ping)
-    runner = aiohttp.web.AppRunner(app)
+    runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 10000))
-    site = aiohttp.web.TCPSite(runner, "0.0.0.0", port)
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
 # 2. Configuração do Gemini Client
@@ -63,7 +64,7 @@ async def noticias(ctx, *, jogo: str = None):
                 f"AVISO CRÍTICO: Se você NÃO tiver certeza absoluta de uma atualização recente e real deste jogo, "
                 f"RESPONDA APENAS: 'Não encontrei atualizações oficiais recentes confirmadas para o jogo {jogo}. "
                 f"Recomendo checar a página oficial do jogo no Roblox.'\n"
-                f"NUNCA invente atualizações, mecânicas ou códigos fictícios. Se souber de fatos reais, resume-os em 2 tópicos com Markdown."
+                f"NUNCA invente atualizações, mecânicas ou códigos fictícios. Se souber de fatos reais, resuma-os em 2 tópicos com Markdown."
             )
         else:
             await ctx.send("🔍 Obtendo as últimas novidades oficiais do Roblox...")
@@ -78,8 +79,8 @@ async def noticias(ctx, *, jogo: str = None):
                 )
             else:
                 prompt = (
-                    "Traga um resumo curto sobre o que é a plataforma Roblox e como acompanhar os eventos oficiais "
-                    "no site roblox.com. Não invente eventos que não aconteceram."
+                    "Traga um resumo curto sobre a plataforma Roblox e como acompanhar os eventos oficiais "
+                    "no site roblox.com. Não invente eventos."
                 )
 
         try:
