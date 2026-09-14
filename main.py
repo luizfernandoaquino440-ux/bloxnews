@@ -1,14 +1,14 @@
 import os
 import asyncio
 from duckduckgo_search import DDGS
-from google import genai
+from groq import Groq
 from aiohttp import web
 import discord
 from discord.ext import commands
 
-# 1. Servidor Web (Render Keep-Alive)
+# 1. Servidor Web (Mantém o Render ativo no plano grátis)
 async def handle_ping(request):
-    return web.Response(text="Bot BloxNews online com Web Search!")
+    return web.Response(text="Bot BloxNews online com Groq!")
 
 async def start_web_server():
     app = web.Application()
@@ -19,13 +19,13 @@ async def start_web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# 2. Configuração do Gemini Client
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# 2. Cliente Groq API
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# 3. Função de Pesquisa Web Gratuita (DuckDuckGo)
+# 3. Pesquisa Web em tempo real (DuckDuckGo)
 def pesquisar_na_web(query):
     try:
-        results = list(DDGS().text(query, max_results=3))
+        results = list(DDGS().text(query, max_results=4))
         if not results:
             return None
         
@@ -37,14 +37,14 @@ def pesquisar_na_web(query):
         print(f"Erro na busca web: {e}")
         return None
 
-# 4. Bot Discord
+# 4. Configuração do Bot Discord
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"🤖 BloxNews conectado como: {bot.user}")
+    print(f"🤖 BloxNews conectado com sucesso usando Groq como: {bot.user}")
 
 @bot.command(name="noticias")
 async def noticias(ctx, *, jogo: str = None):
@@ -53,40 +53,41 @@ async def noticias(ctx, *, jogo: str = None):
 
         if jogo:
             await ctx.send(f"🔍 Pesquisando na web em tempo real sobre **{jogo}** no Roblox...")
-            termo_busca = f"Roblox {jogo} latest update patch notes news codes"
+            termo_busca = f"Roblox {jogo} latest update patch notes news"
         else:
-            await ctx.send("🔍 Pesquisando as últimas notícias gerais do Roblox na web...")
-            termo_busca = f"Roblox platform latest updates news events"
+            await ctx.send("🔍 Pesquisando as últimas notícias do Roblox na web...")
+            termo_busca = "Roblox platform latest updates news events"
 
-        # Faz a busca web em segundo plano
         resultados_web = await loop.run_in_executor(None, pesquisar_na_web, termo_busca)
 
         if resultados_web:
             prompt = (
                 f"Você é o 'BloxNews', um jornalista especializado em Roblox.\n"
-                f"Com base APENAS nos resultados reais de busca da web abaixo, crie um resumo das novidades:\n\n"
+                f"Com base APENAS nos resultados de busca abaixo, crie um resumo objetivo das novidades:\n\n"
                 f"{resultados_web}\n\n"
                 f"REGRAS:\n"
-                f"- Destaque as principais atualizações, códigos ou novidades encontradas.\n"
+                f"- Destaque as principais atualizações ou novidades encontradas.\n"
                 f"- Formate com marcadores, emojis e negritos para o Discord.\n"
-                f"- Se houver links relevantes nos dados acima, adicione-os no final.\n"
-                f"- Seja direto e sem saudações."
+                f"- Seja direto e responda em português.\n"
+                f"- Não inclua saudações ou despedidas."
             )
         else:
             prompt = (
-                f"Informe que você tentou pesquisar na web sobre '{jogo if jogo else 'Roblox'}', "
-                f"mas não encontrou resultados recentes e peça para tentar novamente mais tarde."
+                f"Informe resumidamente em português que você pesquisou sobre '{jogo if jogo else 'Roblox'}', "
+                f"mas não encontrou atualizações recentes nas fontes da web no momento."
             )
 
         try:
-            response = await loop.run_in_executor(
+            chat_completion = await loop.run_in_executor(
                 None,
-                lambda: client.models.generate_content(
-                    model="gemini-3.6-flash",
-                    contents=prompt,
+                lambda: groq_client.chat.completions.create(
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    model="llama-3.3-70b-versatile",
                 )
             )
-            texto = response.text.strip()
+            texto = chat_completion.choices[0].message.content.strip()
 
             if len(texto) <= 2000:
                 await ctx.send(texto)
@@ -95,7 +96,7 @@ async def noticias(ctx, *, jogo: str = None):
                     await ctx.send(texto[i:i+1900])
 
         except Exception as e:
-            await ctx.send(f"⚠️ Erro ao gerar resposta: `{e}`")
+            await ctx.send(f"⚠️ Erro ao gerar notícias com Groq: `{e}`")
 
 # 5. Loop Principal
 async def main():
