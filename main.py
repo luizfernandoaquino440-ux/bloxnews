@@ -6,7 +6,7 @@ from aiohttp import web
 import discord
 from discord.ext import commands
 
-# 1. Servidor Web (Mantém o Render ativo no plano grátis)
+# 1. Servidor Web (Keep-Alive no Render)
 async def handle_ping(request):
     return web.Response(text="Bot BloxNews online com Groq!")
 
@@ -78,13 +78,14 @@ async def noticias(ctx, *, jogo: str = None):
             )
 
         try:
+            # Modelo estável e rápido garantido na Groq
             chat_completion = await loop.run_in_executor(
                 None,
                 lambda: groq_client.chat.completions.create(
                     messages=[
                         {"role": "user", "content": prompt}
                     ],
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-8b-instant",
                 )
             )
             texto = chat_completion.choices[0].message.content.strip()
