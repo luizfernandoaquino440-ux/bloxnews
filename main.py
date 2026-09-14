@@ -3,7 +3,7 @@ import asyncio
 from google import genai
 from aiohttp import web
 import discord
-from discord.ext commands
+from discord.ext import commands
 
 # 1. Servidor Web Fictício (Mantém o Render Free ativo)
 async def handle_ping(request):
@@ -42,7 +42,7 @@ async def noticias(ctx, *, jogo: str = None):
         else:
             foco_instrucao = (
                 "Foque EXCLUSIVAMENTE em notícias oficiais e recentes do PRÓPRIO ROBLOX como plataforma "
-                "(ex: eventos globais novos, The Hunt, Roblox Innovation Awards, atualizações da engine, "
+                "(ex: eventos globais novos, Roblox Innovation Awards, atualizações da engine, "
                 "novas ferramentas ou anúncios da própria Roblox Corporation)."
             )
             mensagem_espera = "🔍 Buscando as últimas novidades oficiais da plataforma Roblox..."
